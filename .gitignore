@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+msgstore.db*
+Media/
+WhatsApp Images/
+WhatsApp Video/

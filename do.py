@@ -1,9 +1,10 @@
-import sqlite3
 import os
 import shutil
+import sqlite3
+from tqdm import tqdm
 
 conn = sqlite3.connect('msgstore.db')
-path_to_media = "wa_img/"
+path_to_media = "Media/"
 
 cursor = conn.execute('''
 select raw_string
@@ -18,10 +19,13 @@ for row in cursor:
 
 population = len(people)
 
-for person in enumerate(people):
+# people = people[0:50] # remove this
+
+
+for person in tqdm(enumerate(people), total=len(people)):
+    #image
     cursor = conn.execute('''
     select
-
         _id,
         media_mime_type,
         substr(
@@ -34,31 +38,72 @@ for person in enumerate(people):
         and `media_mime_type` like '%image%';
     '''.format(person[1]))
 
-    media = []
+    images = []
     for row in cursor:
         try:
-            media.append(row[2].decode('ascii'))
+            images.append(row[2].decode('ascii'))
         except:
             pass
-
-    try:  
-        os.mkdir(os.path.join(path_to_media, person[1]))
-    except OSError:  
-        print ("Creation of the directory failed")
-
-    for file in media:
-        path_to_file = os.path.join(path_to_media, file)
-        print("Debug: path is {}".format(path_to_file))
-
+    
+    #video
+    cursor = conn.execute('''
+    select
+        _id,
+        media_mime_type,
+        substr(
+            substr(thumb_image,instr(thumb_image,'VID'),60)
+            ,instr(substr(thumb_image,instr(thumb_image,'VID'),23),'VID')
+            ,23)
+    from `messages`
+    where
+        `key_remote_jid` like '%{}%'
+        and `media_mime_type` like '%video%';
+    '''.format(person[1]))
+    
+    videos = []
+    for row in cursor:
         try:
-            does_file_exist = os.path.isfile(path_to_file)
+            videos.append(row[2].decode('ascii'))
         except:
             pass
-        if does_file_exist:
+
+    if len(images) + len(videos)> 0:
+        try:  
+            os.mkdir(os.path.join(path_to_media, "sorted", person[1]))
+        except OSError as e:  
+            # print ("Creation of the directory failed \n {}".format(e.strerror))
+            pass
+
+        for image in images:
+            path_to_file = os.path.join(path_to_media, "WhatsApp Images", image)
+            # print("Debug: path is {}".format(path_to_image))
+
             try:
-                shutil.copyfile(path_to_file, os.path.join(path_to_media, person[1], file))
-            except:  
-                print ("Copy failed for {}".format(file))
-    print("{} of {} complete".format(person[0], population))
+                is_file = os.path.isfile(path_to_file)
+                if is_file:
+                    try:
+                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", person[1], image))
+                        # print("{} copied in {}".format(image, person[1]))
+                    except:  
+                        print ("Copy failed for {}".format(image))
+            except:
+                print("couldn't find file")
+
+
+        for video in videos:
+            path_to_file = os.path.join(path_to_media, "WhatsApp Video", video)
+            # print("Debug: path is {}".format(path_to_image))
+
+            try:
+                is_file = os.path.isfile(path_to_file)
+                if is_file:
+                    try:
+                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", person[1], video))
+                        # print("{} copied in {}".format(video, person[1]))
+                    except:  
+                        print ("Copy failed for {}".format(video))
+            except:
+                print("couldn't find file")        
+            
 
 conn.close()
