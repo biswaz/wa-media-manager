@@ -2,6 +2,30 @@ import os
 import shutil
 import sqlite3
 from tqdm import tqdm
+import csv
+
+def find_name_from_csv(phone):
+    def get_list_of_phones(string):
+        s = string.split(' ::: ')
+        for i in enumerate(s):
+            st = i[1]
+            st = st.replace('-', '')
+            st = st.replace(' ', '')        
+            s[i[0]] = st[-10:]
+        return s
+
+    with open("contacts.csv", mode="r") as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                line_count += 1
+            else:
+                for i in range(1, 6):
+                    list_of_phones = get_list_of_phones(row[f'Phone {i} - Value'])
+                    if phone in list_of_phones:
+                        return row['Given Name']
+                line_count += 1
 
 conn = sqlite3.connect('msgstore.db')
 path_to_media = "Media/"
@@ -68,8 +92,14 @@ for person in tqdm(enumerate(people), total=len(people)):
             pass
 
     if len(images) + len(videos)> 0:
+        try:
+            name = find_name_from_csv(person[1].replace('@s.whatsapp.net', '').split('91')[1])
+        except:
+            pass
+        if name is None:
+            name = person[1].strip('@s.whatsapp.net')
         try:  
-            os.mkdir(os.path.join(path_to_media, "sorted", person[1]))
+            os.mkdir(os.path.join(path_to_media, "sorted", name))
         except OSError as e:  
             # print ("Creation of the directory failed \n {}".format(e.strerror))
             pass
@@ -82,7 +112,7 @@ for person in tqdm(enumerate(people), total=len(people)):
                 is_file = os.path.isfile(path_to_file)
                 if is_file:
                     try:
-                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", person[1], image))
+                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", name, image))
                         # print("{} copied in {}".format(image, person[1]))
                     except:  
                         print ("Copy failed for {}".format(image))
@@ -98,7 +128,7 @@ for person in tqdm(enumerate(people), total=len(people)):
                 is_file = os.path.isfile(path_to_file)
                 if is_file:
                     try:
-                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", person[1], video))
+                        shutil.copyfile(path_to_file, os.path.join(path_to_media, "sorted", name, video))
                         # print("{} copied in {}".format(video, person[1]))
                     except:  
                         print ("Copy failed for {}".format(video))
